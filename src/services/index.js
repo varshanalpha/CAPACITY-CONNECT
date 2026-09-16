@@ -1,2 +1,5 @@
 export * from './authService'
 export * from './adminService'
+export * from './traineeProfileService'
+export * from './trainerProfileService'
+export * from './trainingProgrammeService'

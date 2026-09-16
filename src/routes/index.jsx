@@ -4,8 +4,11 @@ import Home from '../pages/Home'
 import Login from '../pages/Login'
 import Signup from '../pages/auth/Signup'
 import TraineeDashboard from '../pages/trainee/TraineeDashboard'
+import TraineeProfile from '../pages/trainee/TraineeProfile'
 import TrainerDashboard from '../pages/trainer/TrainerDashboard'
+import TrainerProfile from '../pages/trainer/TrainerProfile'
 import AdminDashboard from '../pages/admin/AdminDashboard'
+import AdminTrainingProgrammes from '../pages/admin/AdminTrainingProgrammes'
 import PendingApproval from '../pages/auth/PendingApproval'
 import AccessDenied from '../pages/auth/AccessDenied'
 import NotFound from '../pages/NotFound'
@@ -49,6 +52,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'trainee/profile',
+        element: (
+          <ProtectedRoute allowedRoles={['trainee']}>
+            <TraineeProfile />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: 'trainer/dashboard',
         element: (
           <ProtectedRoute allowedRoles={['trainer']}>
@@ -57,10 +68,26 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'trainer/profile',
+        element: (
+          <ProtectedRoute allowedRoles={['trainer']}>
+            <TrainerProfile />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: 'admin/dashboard',
         element: (
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/training-programmes',
+        element: (
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminTrainingProgrammes />
           </ProtectedRoute>
         ),
       },

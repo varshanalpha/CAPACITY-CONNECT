@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ShieldCheck,
@@ -289,6 +289,24 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Navigation Switcher Tabs */}
+      <div className="flex border-b border-gray-200">
+        <Link
+          to="/admin/dashboard"
+          className="border-b-2 border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-600 flex items-center space-x-2"
+        >
+          <Users className="h-4 w-4" />
+          <span>User Approvals & Management</span>
+        </Link>
+        <Link
+          to="/admin/training-programmes"
+          className="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 transition flex items-center space-x-2"
+        >
+          <BookOpen className="h-4 w-4" />
+          <span>Training Programmes</span>
+        </Link>
+      </div>
+
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
         <div className="flex items-center space-x-4">

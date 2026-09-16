@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom'
-import { BookOpen, LogOut, Users, CheckCircle2, Shield } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { BookOpen, LogOut, Users, CheckCircle2, Shield, UserCircle2, ArrowRight } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function TrainerDashboard() {
@@ -34,9 +34,13 @@ export default function TrainerDashboard() {
         </div>
 
         <div className="mt-4 sm:mt-0 flex items-center space-x-3">
-          <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-            Role: {profile?.role || 'trainer'}
-          </span>
+          <Link
+            to="/trainer/profile"
+            className="inline-flex items-center rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm transition"
+          >
+            <UserCircle2 className="mr-1.5 h-4 w-4" />
+            My Profile
+          </Link>
           <button
             onClick={handleLogout}
             className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition"
@@ -45,6 +49,26 @@ export default function TrainerDashboard() {
             Sign Out
           </button>
         </div>
+      </div>
+
+      {/* Trainer Professional Profile CTA Card */}
+      <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 p-6 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center space-x-2">
+            <UserCircle2 className="h-5 w-5 text-emerald-200" />
+            <h2 className="text-lg font-bold">Trainer Professional Profile</h2>
+          </div>
+          <p className="text-xs text-emerald-100 max-w-xl">
+            Manage your domain specialization, years of experience, professional summary, and curriculum areas to showcase your expertise.
+          </p>
+        </div>
+        <Link
+          to="/trainer/profile"
+          className="inline-flex items-center rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50 shadow-md transition self-start md:self-auto"
+        >
+          View & Edit Profile
+          <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+        </Link>
       </div>
 
       {/* Account Verification Details Card */}

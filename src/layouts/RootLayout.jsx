@@ -42,6 +42,22 @@ export default function RootLayout() {
 
               {isAuthenticated ? (
                 <div className="flex items-center space-x-3 pl-2 border-l border-gray-200">
+                  {isApproved && (profile?.role === 'trainee' || profile?.role === 'trainer') && (
+                    <Link
+                      to={profile.role === 'trainer' ? '/trainer/profile' : '/trainee/profile'}
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition"
+                    >
+                      My Profile
+                    </Link>
+                  )}
+                  {isApproved && profile?.role === 'admin' && (
+                    <Link
+                      to="/admin/training-programmes"
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition"
+                    >
+                      Training Programmes
+                    </Link>
+                  )}
                   <Link
                     to={dashboardPath}
                     className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition capitalize"
