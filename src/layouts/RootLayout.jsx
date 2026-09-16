@@ -50,6 +50,14 @@ export default function RootLayout() {
                       My Profile
                     </Link>
                   )}
+                  {isApproved && profile?.role === 'trainee' && (
+                    <Link
+                      to="/trainee/training-programmes"
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition"
+                    >
+                      Training Programmes
+                    </Link>
+                  )}
                   {isApproved && profile?.role === 'admin' && (
                     <Link
                       to="/admin/training-programmes"

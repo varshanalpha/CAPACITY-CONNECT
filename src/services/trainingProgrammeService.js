@@ -13,15 +13,28 @@ export const PROGRAMME_STATUSES = {
 
 /**
  * Fetches all training programmes from public.training_programmes
+ * Joined with trainer profile from public.profiles
  * Ordered by created_at descending
  */
 export async function getTrainingProgrammes() {
   try {
-    console.log('[getTrainingProgrammes] Fetching all training programmes...')
+    console.log('[getTrainingProgrammes] Fetching all training programmes with trainer details...')
 
     const { data, error } = await supabase
       .from('training_programmes')
-      .select('*')
+      .select(`
+        *,
+        trainer:profiles!training_programmes_trainer_id_fkey (
+          id,
+          full_name,
+          email,
+          phone,
+          department,
+          designation,
+          role,
+          status
+        )
+      `)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -53,6 +66,7 @@ export async function getTrainingProgrammes() {
 
 /**
  * Fetches a single training programme by its UUID
+ * Joined with trainer profile from public.profiles
  *
  * @param {string} id
  */
@@ -64,7 +78,19 @@ export async function getTrainingProgrammeById(id) {
 
     const { data, error } = await supabase
       .from('training_programmes')
-      .select('*')
+      .select(`
+        *,
+        trainer:profiles!training_programmes_trainer_id_fkey (
+          id,
+          full_name,
+          email,
+          phone,
+          department,
+          designation,
+          role,
+          status
+        )
+      `)
       .eq('id', id)
       .maybeSingle()
 
@@ -91,6 +117,242 @@ export async function getTrainingProgrammeById(id) {
       success: false,
       error: err instanceof Error ? err.message : 'Failed to fetch training programme details',
       data: null,
+    }
+  }
+}
+
+/**
+ * Fetches all approved trainers from public.profiles
+ * Requirements:
+ * - role = 'trainer'
+ * - status = 'approved'
+ */
+export async function getApprovedTrainers() {
+  try {
+    console.log('[getApprovedTrainers] Fetching all approved trainers from public.profiles...')
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, phone, department, designation, role, status')
+      .eq('role', 'trainer')
+      .eq('status', 'approved')
+      .order('full_name', { ascending: true })
+
+    if (error) {
+      console.error('[getApprovedTrainers] Supabase error:', {
+        table: 'profiles',
+        operation: 'SELECT',
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })
+      throw error
+    }
+
+    console.log(`[getApprovedTrainers] Successfully fetched ${data?.length || 0} approved trainers`)
+    return {
+      success: true,
+      data: data || [],
+    }
+  } catch (err) {
+    console.error('[getApprovedTrainers] Catch block error:', err)
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to fetch approved trainers',
+      data: [],
+    }
+  }
+}
+
+/**
+ * Manually assigns a trainer to a training programme
+ *
+ * @param {string} programmeId
+ * @param {string} trainerId
+ */
+export async function assignTrainer(programmeId, trainerId) {
+  try {
+    if (!programmeId) throw new Error('Training Programme ID is required.')
+    if (!trainerId) throw new Error('Trainer ID is required.')
+
+    console.log(`[assignTrainer] Assigning trainer ${trainerId} to programme ${programmeId}...`)
+
+    // Verify target trainer is valid, approved, and has role = 'trainer'
+    const { data: trainerProfile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('id, role, status, full_name')
+      .eq('id', trainerId)
+      .maybeSingle()
+
+    if (profileErr) {
+      console.error('[assignTrainer] Error verifying trainer profile:', profileErr)
+      throw profileErr
+    }
+
+    if (!trainerProfile) {
+      throw new Error('Selected trainer profile was not found.')
+    }
+
+    if (trainerProfile.role !== 'trainer') {
+      throw new Error(`Cannot assign user with role '${trainerProfile.role}'. Only trainers can be assigned.`)
+    }
+
+    if (trainerProfile.status !== 'approved') {
+      throw new Error(`Cannot assign trainer with status '${trainerProfile.status}'. Only approved trainers can be assigned.`)
+    }
+
+    const { data, error } = await supabase
+      .from('training_programmes')
+      .update({
+        trainer_id: trainerId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', programmeId)
+      .select(`
+        *,
+        trainer:profiles!training_programmes_trainer_id_fkey (
+          id,
+          full_name,
+          email,
+          phone,
+          department,
+          designation,
+          role,
+          status
+        )
+      `)
+      .single()
+
+    if (error) {
+      console.error('[assignTrainer] Supabase update error:', {
+        table: 'training_programmes',
+        operation: 'UPDATE',
+        programmeId,
+        trainerId,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })
+      throw error
+    }
+
+    console.log(`[assignTrainer] Successfully assigned trainer ${trainerProfile.full_name} to programme ${programmeId}`)
+    return {
+      success: true,
+      data,
+    }
+  } catch (err) {
+    console.error('[assignTrainer] Catch block error:', err)
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to assign trainer.',
+    }
+  }
+}
+
+/**
+ * Removes the assigned trainer from a training programme (sets trainer_id = null)
+ *
+ * @param {string} programmeId
+ */
+export async function removeTrainer(programmeId) {
+  try {
+    if (!programmeId) throw new Error('Training Programme ID is required.')
+
+    console.log(`[removeTrainer] Removing trainer from programme ${programmeId}...`)
+
+    const { data, error } = await supabase
+      .from('training_programmes')
+      .update({
+        trainer_id: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', programmeId)
+      .select(`
+        *,
+        trainer:profiles!training_programmes_trainer_id_fkey (
+          id,
+          full_name,
+          email,
+          phone,
+          department,
+          designation,
+          role,
+          status
+        )
+      `)
+      .single()
+
+    if (error) {
+      console.error('[removeTrainer] Supabase update error:', {
+        table: 'training_programmes',
+        operation: 'UPDATE',
+        programmeId,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })
+      throw error
+    }
+
+    console.log(`[removeTrainer] Successfully unassigned trainer from programme ${programmeId}`)
+    return {
+      success: true,
+      data,
+    }
+  } catch (err) {
+    console.error('[removeTrainer] Catch block error:', err)
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to remove trainer.',
+    }
+  }
+}
+
+/**
+ * Fetches training programmes assigned to the logged-in trainer
+ * (Leverages Supabase RLS trainer_id = auth.uid())
+ *
+ * @param {string} trainerUserId
+ */
+export async function getTrainerAssignedProgrammes(trainerUserId) {
+  try {
+    if (!trainerUserId) throw new Error('Trainer User ID is required.')
+
+    console.log(`[getTrainerAssignedProgrammes] Fetching assigned programmes for trainer ${trainerUserId}...`)
+
+    const { data, error } = await supabase
+      .from('training_programmes')
+      .select('*')
+      .eq('trainer_id', trainerUserId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('[getTrainerAssignedProgrammes] Supabase error:', {
+        table: 'training_programmes',
+        operation: 'SELECT',
+        trainerUserId,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })
+      throw error
+    }
+
+    return {
+      success: true,
+      data: data || [],
+    }
+  } catch (err) {
+    console.error('[getTrainerAssignedProgrammes] Catch block error:', err)
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to fetch assigned programmes',
+      data: [],
     }
   }
 }
@@ -174,7 +436,19 @@ export async function createTrainingProgramme(data) {
     const { data: insertedData, error: insertError } = await supabase
       .from('training_programmes')
       .insert(payload)
-      .select()
+      .select(`
+        *,
+        trainer:profiles!training_programmes_trainer_id_fkey (
+          id,
+          full_name,
+          email,
+          phone,
+          department,
+          designation,
+          role,
+          status
+        )
+      `)
       .single()
 
     if (insertError) {
@@ -270,7 +544,19 @@ export async function updateTrainingProgramme(id, data) {
       .from('training_programmes')
       .update(payload)
       .eq('id', id)
-      .select()
+      .select(`
+        *,
+        trainer:profiles!training_programmes_trainer_id_fkey (
+          id,
+          full_name,
+          email,
+          phone,
+          department,
+          designation,
+          role,
+          status
+        )
+      `)
       .single()
 
     if (updateError) {

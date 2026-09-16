@@ -5,6 +5,7 @@ import Login from '../pages/Login'
 import Signup from '../pages/auth/Signup'
 import TraineeDashboard from '../pages/trainee/TraineeDashboard'
 import TraineeProfile from '../pages/trainee/TraineeProfile'
+import TraineeTrainingProgrammes from '../pages/trainee/TraineeTrainingProgrammes'
 import TrainerDashboard from '../pages/trainer/TrainerDashboard'
 import TrainerProfile from '../pages/trainer/TrainerProfile'
 import AdminDashboard from '../pages/admin/AdminDashboard'
@@ -56,6 +57,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={['trainee']}>
             <TraineeProfile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'trainee/training-programmes',
+        element: (
+          <ProtectedRoute allowedRoles={['trainee']}>
+            <TraineeTrainingProgrammes />
           </ProtectedRoute>
         ),
       },

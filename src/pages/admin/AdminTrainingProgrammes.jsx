@@ -16,20 +16,25 @@ import {
   X,
   Clock,
   UserCheck,
+  UserPlus,
   ShieldCheck,
   ArrowRight,
   Filter,
   Layers,
   FileText,
-  Target,
-  Sparkles,
-  Info,
-  CalendarDays,
-  UserX,
+  Building,
+  Briefcase,
+  Mail,
+  Phone,
+  UserMinus,
+  Check,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getTrainingProgrammes,
+  getApprovedTrainers,
+  assignTrainer,
+  removeTrainer,
   createTrainingProgramme,
   updateTrainingProgramme,
   deleteTrainingProgramme,
@@ -50,11 +55,37 @@ export default function AdminTrainingProgrammes() {
   // Notification state
   const [notification, setNotification] = useState(null)
 
-  // Modals state
+  // CRUD Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [editingProgramme, setEditingProgramme] = useState(null)
   const [viewingProgramme, setViewingProgramme] = useState(null)
   const [deletingProgramme, setDeletingProgramme] = useState(null)
+
+  // Trainer Assignment Modals state
+  const [assignModal, setAssignModal] = useState({
+    isOpen: false,
+    programme: null,
+    isChanging: false,
+  })
+  const [approvedTrainers, setApprovedTrainers] = useState([])
+  const [loadingTrainers, setLoadingTrainers] = useState(false)
+  const [trainerSearch, setTrainerSearch] = useState('')
+  const [selectedTrainerId, setSelectedTrainerId] = useState('')
+  const [assignSubmitting, setAssignSubmitting] = useState(false)
+
+  // Confirm Change Trainer Modal
+  const [changeConfirmModal, setChangeConfirmModal] = useState({
+    isOpen: false,
+    programme: null,
+    targetTrainer: null,
+  })
+
+  // Remove Trainer Modal
+  const [removeTrainerModal, setRemoveTrainerModal] = useState({
+    isOpen: false,
+    programme: null,
+  })
+  const [removeSubmitting, setRemoveSubmitting] = useState(false)
 
   // Form submission loading
   const [formSubmitting, setFormSubmitting] = useState(false)
@@ -232,6 +263,9 @@ export default function AdminTrainingProgrammes() {
       if (result.success) {
         showNotification('success', 'Training programme deleted successfully.')
         setDeletingProgramme(null)
+        if (viewingProgramme?.id === deletingProgramme.id) {
+          setViewingProgramme(null)
+        }
         await loadProgrammes(true)
       } else {
         showNotification('error', result.error || 'Failed to delete training programme.')
@@ -243,17 +277,155 @@ export default function AdminTrainingProgrammes() {
     }
   }
 
+  // ==========================================
+  // TRAINER ASSIGNMENT HANDLERS
+  // ==========================================
+
+  // Open Assign / Change Trainer Modal
+  const handleOpenAssignTrainer = async (programme, isChanging = false) => {
+    setAssignModal({
+      isOpen: true,
+      programme,
+      isChanging,
+    })
+    setSelectedTrainerId(programme.trainer_id || '')
+    setTrainerSearch('')
+    setLoadingTrainers(true)
+
+    try {
+      const result = await getApprovedTrainers()
+      if (result.success) {
+        setApprovedTrainers(result.data)
+      } else {
+        showNotification('error', result.error || 'Failed to load approved trainers.')
+      }
+    } catch (err) {
+      showNotification('error', err instanceof Error ? err.message : 'Error fetching trainers.')
+    } finally {
+      setLoadingTrainers(false)
+    }
+  }
+
+  // Submit Trainer Selection (or prompt confirmation if changing)
+  const handleAssignTrainerSubmit = async () => {
+    if (!selectedTrainerId) {
+      showNotification('error', 'Please select an approved trainer from the list.')
+      return
+    }
+
+    const targetTrainer = approvedTrainers.find((t) => t.id === selectedTrainerId)
+    if (!targetTrainer) {
+      showNotification('error', 'Selected trainer is not valid or no longer approved.')
+      return
+    }
+
+    // If changing an existing trainer, show confirmation modal
+    if (assignModal.isChanging && assignModal.programme.trainer_id && assignModal.programme.trainer_id !== selectedTrainerId) {
+      setChangeConfirmModal({
+        isOpen: true,
+        programme: assignModal.programme,
+        targetTrainer,
+      })
+      return
+    }
+
+    // If same trainer selected in change mode
+    if (assignModal.isChanging && assignModal.programme.trainer_id === selectedTrainerId) {
+      setAssignModal({ isOpen: false, programme: null, isChanging: false })
+      return
+    }
+
+    // Direct assignment
+    await executeAssignTrainer(assignModal.programme.id, targetTrainer.id, false)
+  }
+
+  // Execute assignment update in Supabase
+  const executeAssignTrainer = async (programmeId, trainerId, isChange = false) => {
+    setAssignSubmitting(true)
+    try {
+      const result = await assignTrainer(programmeId, trainerId)
+      if (result.success) {
+        showNotification('success', isChange ? 'Trainer changed successfully.' : 'Trainer assigned successfully.')
+        setAssignModal({ isOpen: false, programme: null, isChanging: false })
+        setChangeConfirmModal({ isOpen: false, programme: null, targetTrainer: null })
+
+        // Update viewing programme if open
+        if (viewingProgramme && viewingProgramme.id === programmeId) {
+          setViewingProgramme(result.data)
+        }
+
+        await loadProgrammes(true)
+      } else {
+        showNotification('error', result.error || 'Failed to assign trainer.')
+      }
+    } catch (err) {
+      showNotification('error', err instanceof Error ? err.message : 'Failed to assign trainer.')
+    } finally {
+      setAssignSubmitting(false)
+    }
+  }
+
+  // Open Remove Trainer Modal
+  const handleOpenRemoveTrainer = (programme) => {
+    setRemoveTrainerModal({
+      isOpen: true,
+      programme,
+    })
+  }
+
+  // Execute Remove Trainer in Supabase
+  const handleRemoveTrainerConfirm = async () => {
+    if (!removeTrainerModal.programme) return
+
+    setRemoveSubmitting(true)
+    const programmeId = removeTrainerModal.programme.id
+
+    try {
+      const result = await removeTrainer(programmeId)
+      if (result.success) {
+        showNotification('success', 'Trainer removed successfully.')
+        setRemoveTrainerModal({ isOpen: false, programme: null })
+
+        // Update viewing programme if open
+        if (viewingProgramme && viewingProgramme.id === programmeId) {
+          setViewingProgramme(result.data)
+        }
+
+        await loadProgrammes(true)
+      } else {
+        showNotification('error', result.error || 'Failed to remove trainer.')
+      }
+    } catch (err) {
+      showNotification('error', err instanceof Error ? err.message : 'Failed to remove trainer.')
+    } finally {
+      setRemoveSubmitting(false)
+    }
+  }
+
   // Filter programmes
   const filteredProgrammes = programmes.filter((p) => {
     const matchesSearch =
       searchTerm === '' ||
       p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.objectives?.toLowerCase().includes(searchTerm.toLowerCase())
+      p.objectives?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.trainer?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesStatus = statusFilter === 'all' || (p.status || '').toLowerCase() === statusFilter.toLowerCase()
 
     return matchesSearch && matchesStatus
+  })
+
+  // Filter approved trainers in assignment modal
+  const filteredTrainers = approvedTrainers.filter((t) => {
+    if (!trainerSearch.trim()) return true
+    const searchLower = trainerSearch.toLowerCase()
+    return (
+      (t.full_name && t.full_name.toLowerCase().includes(searchLower)) ||
+      (t.designation && t.designation.toLowerCase().includes(searchLower)) ||
+      (t.department && t.department.toLowerCase().includes(searchLower)) ||
+      (t.email && t.email.toLowerCase().includes(searchLower))
+    )
   })
 
   // Format Dates
@@ -411,7 +583,7 @@ export default function AdminTrainingProgrammes() {
           <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search by title, description, objectives..."
+            placeholder="Search by title, description, objectives, trainer..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition"
@@ -450,7 +622,7 @@ export default function AdminTrainingProgrammes() {
         </div>
       </div>
 
-      {/* Programme List Table & Cards */}
+      {/* Programme List Table */}
       <div className="rounded-2xl bg-white shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
@@ -508,7 +680,7 @@ export default function AdminTrainingProgrammes() {
                   <th scope="col" className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700">
                     Status
                   </th>
-                  <th scope="col" className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700">
+                  <th scope="col" className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700 min-w-[200px]">
                     Trainer
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-left text-xs font-semibold text-gray-700">
@@ -558,15 +730,53 @@ export default function AdminTrainingProgrammes() {
                     <td className="px-4 py-4 whitespace-nowrap">
                       {getStatusBadge(programme.status)}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-xs text-gray-500 italic">
-                      {programme.trainer_id ? (
-                        <span className="text-gray-700 not-italic font-medium">Trainer Assigned</span>
+
+                    {/* TRAINER COLUMN WITH ASSIGN / CHANGE / REMOVE ACTIONS */}
+                    <td className="px-4 py-4">
+                      {programme.trainer ? (
+                        <div className="flex flex-col space-y-1">
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-semibold text-xs text-gray-900 truncate max-w-[150px]">
+                              {programme.trainer.full_name}
+                            </span>
+                          </div>
+                          {(programme.trainer.designation || programme.trainer.department) && (
+                            <span className="text-[11px] text-gray-500 truncate max-w-[160px]">
+                              {programme.trainer.designation || programme.trainer.department}
+                            </span>
+                          )}
+                          <div className="flex items-center space-x-2 pt-1">
+                            <button
+                              onClick={() => handleOpenAssignTrainer(programme, true)}
+                              className="text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:underline transition"
+                            >
+                              Change Trainer
+                            </button>
+                            <span className="text-gray-300">|</span>
+                            <button
+                              onClick={() => handleOpenRemoveTrainer(programme)}
+                              className="text-[11px] font-medium text-rose-600 hover:text-rose-800 hover:underline transition"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
                       ) : (
-                        <span className="inline-flex items-center text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[11px] not-italic">
-                          Trainer not assigned
-                        </span>
+                        <div className="flex flex-col space-y-1.5 items-start">
+                          <span className="inline-flex items-center text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[11px] font-medium ring-1 ring-inset ring-amber-600/20">
+                            Trainer not assigned
+                          </span>
+                          <button
+                            onClick={() => handleOpenAssignTrainer(programme, false)}
+                            className="inline-flex items-center rounded bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition shadow-xs"
+                          >
+                            <UserPlus className="mr-1 h-3 w-3" />
+                            Assign Trainer
+                          </button>
+                        </div>
                       )}
                     </td>
+
                     <td className="px-4 py-4 whitespace-nowrap text-xs text-gray-500">
                       {formatDate(programme.created_at)}
                     </td>
@@ -602,6 +812,298 @@ export default function AdminTrainingProgrammes() {
           </div>
         )}
       </div>
+
+      {/* ASSIGN / CHANGE TRAINER MODAL */}
+      <AnimatePresence>
+        {assignModal.isOpen && assignModal.programme && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl border border-gray-100 my-8 overflow-hidden"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                <div className="flex items-center space-x-3">
+                  <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
+                    <UserCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">
+                      {assignModal.isChanging ? 'Change Trainer' : 'Assign Trainer'}
+                    </h2>
+                    <p className="text-xs text-gray-500">
+                      Select an approved trainer for this training programme.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAssignModal({ isOpen: false, programme: null, isChanging: false })}
+                  className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Programme Context Banner */}
+              <div className="mt-4 p-3.5 rounded-xl bg-blue-50/70 border border-blue-100">
+                <span className="text-[11px] font-semibold text-blue-800 uppercase tracking-wider">
+                  Training Programme:
+                </span>
+                <p className="text-sm font-bold text-gray-900 mt-0.5">
+                  {assignModal.programme.title}
+                </p>
+                {assignModal.programme.trainer && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    Current Assigned Trainer:{' '}
+                    <strong className="text-gray-900">{assignModal.programme.trainer.full_name}</strong>
+                  </p>
+                )}
+              </div>
+
+              {/* Search Filter */}
+              <div className="mt-4">
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Select Trainer:
+                </label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search trainers by name, designation, department..."
+                    value={trainerSearch}
+                    onChange={(e) => setTrainerSearch(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition"
+                  />
+                </div>
+              </div>
+
+              {/* Trainer List */}
+              <div className="mt-3 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50/50 p-2 space-y-1.5">
+                {loadingTrainers ? (
+                  <div className="p-8 text-center">
+                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-emerald-600 border-r-transparent align-[-0.125em]" />
+                    <p className="mt-2 text-xs text-gray-500 font-medium">Loading approved trainers...</p>
+                  </div>
+                ) : filteredTrainers.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <Users className="mx-auto h-8 w-8 text-gray-300" />
+                    <p className="mt-2 text-xs font-semibold text-gray-700">No approved trainers found</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      {trainerSearch
+                        ? `No trainers match "${trainerSearch}".`
+                        : 'There are currently no approved trainer profiles in the system.'}
+                    </p>
+                  </div>
+                ) : (
+                  filteredTrainers.map((trainer) => {
+                    const isSelected = selectedTrainerId === trainer.id
+                    return (
+                      <div
+                        key={trainer.id}
+                        onClick={() => setSelectedTrainerId(trainer.id)}
+                        className={`cursor-pointer rounded-lg p-3 transition flex items-center justify-between border ${
+                          isSelected
+                            ? 'bg-emerald-50/80 border-emerald-500 shadow-xs'
+                            : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div
+                            className={`rounded-full p-2 text-xs font-bold flex items-center justify-center ${
+                              isSelected
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            <UserCheck className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs font-bold text-gray-900">
+                                {trainer.full_name || 'Unnamed Trainer'}
+                              </span>
+                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                Approved
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-[11px] text-gray-500 mt-0.5">
+                              {trainer.designation && (
+                                <span className="flex items-center">
+                                  <Briefcase className="mr-1 h-3 w-3 text-gray-400" />
+                                  {trainer.designation}
+                                </span>
+                              )}
+                              {trainer.department && (
+                                <span className="flex items-center">
+                                  <Building className="mr-1 h-3 w-3 text-gray-400" />
+                                  {trainer.department}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex-shrink-0 ml-2">
+                          <div
+                            className={`w-5 h-5 rounded-full border flex items-center justify-center transition ${
+                              isSelected
+                                ? 'border-emerald-600 bg-emerald-600 text-white'
+                                : 'border-gray-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end space-x-3 pt-4 mt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setAssignModal({ isOpen: false, programme: null, isChanging: false })}
+                  disabled={assignSubmitting}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAssignTrainerSubmit}
+                  disabled={assignSubmitting || !selectedTrainerId || loadingTrainers}
+                  className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition disabled:opacity-50 shadow-sm"
+                >
+                  {assignSubmitting && (
+                    <div className="mr-2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                  )}
+                  {assignModal.isChanging ? 'Change Trainer' : 'Assign Trainer'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CONFIRM CHANGE TRAINER MODAL */}
+      <AnimatePresence>
+        {changeConfirmModal.isOpen && changeConfirmModal.targetTrainer && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-gray-100"
+            >
+              <div className="flex items-start space-x-3">
+                <div className="rounded-full bg-amber-50 p-2.5 text-amber-600 flex-shrink-0">
+                  <AlertCircle className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Confirm Trainer Change</h3>
+                  <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                    Change the trainer for this training programme?
+                  </p>
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs space-y-1">
+                    <p className="font-medium text-gray-500">
+                      Programme: <strong className="text-gray-900">{changeConfirmModal.programme?.title}</strong>
+                    </p>
+                    <p className="font-medium text-gray-500">
+                      New Trainer: <strong className="text-emerald-700">{changeConfirmModal.targetTrainer.full_name}</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setChangeConfirmModal({ isOpen: false, programme: null, targetTrainer: null })}
+                  disabled={assignSubmitting}
+                  className="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => executeAssignTrainer(changeConfirmModal.programme.id, changeConfirmModal.targetTrainer.id, true)}
+                  disabled={assignSubmitting}
+                  className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm transition disabled:opacity-60"
+                >
+                  {assignSubmitting && (
+                    <div className="mr-2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                  )}
+                  Confirm Change
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CONFIRM REMOVE TRAINER MODAL */}
+      <AnimatePresence>
+        {removeTrainerModal.isOpen && removeTrainerModal.programme && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-gray-100"
+            >
+              <div className="flex items-start space-x-3">
+                <div className="rounded-full bg-rose-50 p-2.5 text-rose-600 flex-shrink-0">
+                  <UserMinus className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Remove Assigned Trainer</h3>
+                  <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                    Are you sure you want to remove the assigned trainer?
+                  </p>
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs space-y-1">
+                    <p className="text-gray-500">
+                      Programme: <strong className="text-gray-900">{removeTrainerModal.programme.title}</strong>
+                    </p>
+                    {removeTrainerModal.programme.trainer && (
+                      <p className="text-gray-500">
+                        Current Trainer: <strong className="text-rose-700">{removeTrainerModal.programme.trainer.full_name}</strong>
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-2">
+                    This will unassign the trainer from this programme. The trainer&apos;s user account and profile will remain unaffected.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setRemoveTrainerModal({ isOpen: false, programme: null })}
+                  disabled={removeSubmitting}
+                  className="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemoveTrainerConfirm}
+                  disabled={removeSubmitting}
+                  className="inline-flex items-center rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 shadow-sm transition disabled:opacity-60"
+                >
+                  {removeSubmitting && (
+                    <div className="mr-2 h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-r-transparent" />
+                  )}
+                  Remove Trainer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* CREATE & EDIT MODAL */}
       <AnimatePresence>
@@ -869,6 +1371,75 @@ export default function AdminTrainingProgrammes() {
                   <div>{getStatusBadge(viewingProgramme.status)}</div>
                 </div>
 
+                {/* Trainer Section Card */}
+                <div className="p-4 rounded-xl border border-gray-200 bg-white shadow-xs">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-gray-800 flex items-center">
+                      <UserCheck className="mr-1.5 h-4 w-4 text-emerald-600" />
+                      Assigned Trainer
+                    </span>
+                    {viewingProgramme.trainer ? (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => {
+                            const p = viewingProgramme
+                            handleOpenAssignTrainer(p, true)
+                          }}
+                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          Change Trainer
+                        </button>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          onClick={() => {
+                            const p = viewingProgramme
+                            handleOpenRemoveTrainer(p)
+                          }}
+                          className="text-xs font-semibold text-rose-600 hover:text-rose-800 hover:underline"
+                        >
+                          Remove Trainer
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          const p = viewingProgramme
+                          handleOpenAssignTrainer(p, false)
+                        }}
+                        className="inline-flex items-center rounded bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition"
+                      >
+                        <UserPlus className="mr-1 h-3.5 w-3.5" />
+                        Assign Trainer
+                      </button>
+                    )}
+                  </div>
+
+                  {viewingProgramme.trainer ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                      <div>
+                        <span className="text-gray-500 text-[11px]">Full Name:</span>
+                        <p className="font-bold text-gray-900">{viewingProgramme.trainer.full_name}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 text-[11px]">Designation:</span>
+                        <p className="font-semibold text-gray-800">{viewingProgramme.trainer.designation || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 text-[11px]">Department:</span>
+                        <p className="font-semibold text-gray-800">{viewingProgramme.trainer.department || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 text-[11px]">Email Address:</span>
+                        <p className="font-semibold text-gray-800 truncate">{viewingProgramme.trainer.email || 'N/A'}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-amber-50/70 border border-amber-200/60 rounded-lg text-xs text-amber-800">
+                      Trainer not assigned. Click &quot;Assign Trainer&quot; above to assign an approved trainer to this programme.
+                    </div>
+                  )}
+                </div>
+
                 {/* Description */}
                 <div>
                   <h4 className="text-xs font-semibold text-gray-700">Description</h4>
@@ -887,13 +1458,6 @@ export default function AdminTrainingProgrammes() {
 
                 {/* Info Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div className="p-3 rounded-lg border border-gray-100 bg-gray-50/50">
-                    <span className="text-[11px] font-medium text-gray-500">Assigned Trainer</span>
-                    <p className="text-xs font-semibold text-amber-800 mt-0.5">
-                      {viewingProgramme.trainer_id ? 'Trainer Assigned' : 'Trainer not assigned'}
-                    </p>
-                  </div>
-
                   <div className="p-3 rounded-lg border border-gray-100 bg-gray-50/50">
                     <span className="text-[11px] font-medium text-gray-500">Maximum Capacity</span>
                     <p className="text-xs font-semibold text-gray-900 mt-0.5">
@@ -926,6 +1490,13 @@ export default function AdminTrainingProgrammes() {
                     <span className="text-[11px] font-medium text-gray-500">Created Date</span>
                     <p className="text-xs font-semibold text-gray-900 mt-0.5">
                       {formatDate(viewingProgramme.created_at)}
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-gray-100 bg-gray-50/50">
+                    <span className="text-[11px] font-medium text-gray-500">Last Updated</span>
+                    <p className="text-xs font-semibold text-gray-900 mt-0.5">
+                      {formatDate(viewingProgramme.updated_at)}
                     </p>
                   </div>
                 </div>
