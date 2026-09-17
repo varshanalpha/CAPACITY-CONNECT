@@ -6,8 +6,14 @@ import Signup from '../pages/auth/Signup'
 import TraineeDashboard from '../pages/trainee/TraineeDashboard'
 import TraineeProfile from '../pages/trainee/TraineeProfile'
 import TraineeTrainingProgrammes from '../pages/trainee/TraineeTrainingProgrammes'
+import TraineeProgrammeAssessments from '../pages/trainee/TraineeProgrammeAssessments'
+import TraineeTakeAssessment from '../pages/trainee/TraineeTakeAssessment'
 import TrainerDashboard from '../pages/trainer/TrainerDashboard'
 import TrainerProfile from '../pages/trainer/TrainerProfile'
+import TrainerTrainingProgrammes from '../pages/trainer/TrainerTrainingProgrammes'
+import TrainerProgrammeResources from '../pages/trainer/TrainerProgrammeResources'
+import TrainerProgrammeAssessments from '../pages/trainer/TrainerProgrammeAssessments'
+import TrainerAssessmentBuilder from '../pages/trainer/TrainerAssessmentBuilder'
 import AdminDashboard from '../pages/admin/AdminDashboard'
 import AdminTrainingProgrammes from '../pages/admin/AdminTrainingProgrammes'
 import PendingApproval from '../pages/auth/PendingApproval'
@@ -69,6 +75,22 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'trainee/training-programmes/:programmeId/assessments',
+        element: (
+          <ProtectedRoute allowedRoles={['trainee']}>
+            <TraineeProgrammeAssessments />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'trainee/assessments/:assessmentId/take',
+        element: (
+          <ProtectedRoute allowedRoles={['trainee']}>
+            <TraineeTakeAssessment />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: 'trainer/dashboard',
         element: (
           <ProtectedRoute allowedRoles={['trainer']}>
@@ -81,6 +103,38 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={['trainer']}>
             <TrainerProfile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'trainer/training-programmes',
+        element: (
+          <ProtectedRoute allowedRoles={['trainer']}>
+            <TrainerTrainingProgrammes />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'trainer/training-programmes/:programmeId/resources',
+        element: (
+          <ProtectedRoute allowedRoles={['trainer']}>
+            <TrainerProgrammeResources />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'trainer/training-programmes/:programmeId/assessments',
+        element: (
+          <ProtectedRoute allowedRoles={['trainer']}>
+            <TrainerProgrammeAssessments />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'trainer/assessments/:assessmentId',
+        element: (
+          <ProtectedRoute allowedRoles={['trainer']}>
+            <TrainerAssessmentBuilder />
           </ProtectedRoute>
         ),
       },

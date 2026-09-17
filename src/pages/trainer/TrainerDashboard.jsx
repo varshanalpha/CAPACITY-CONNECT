@@ -14,6 +14,8 @@ import {
   Target,
   RefreshCw,
   AlertCircle,
+  HelpCircle,
+  FolderOpen,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getTrainerAssignedProgrammes } from '../../services/trainingProgrammeService'
@@ -147,10 +149,17 @@ export default function TrainerDashboard() {
             Refresh
           </button>
           <Link
-            to="/trainer/profile"
+            to="/trainer/training-programmes"
             className="inline-flex items-center rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm transition"
           >
-            <UserCircle2 className="mr-1.5 h-4 w-4" />
+            <BookOpen className="mr-1.5 h-4 w-4" />
+            My Training Programmes
+          </Link>
+          <Link
+            to="/trainer/profile"
+            className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition"
+          >
+            <UserCircle2 className="mr-1.5 h-4 w-4 text-gray-500" />
             My Profile
           </Link>
           <button
@@ -163,24 +172,47 @@ export default function TrainerDashboard() {
         </div>
       </div>
 
-      {/* Trainer Professional Profile CTA Card */}
-      <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 p-6 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2">
-            <UserCircle2 className="h-5 w-5 text-emerald-200" />
-            <h2 className="text-lg font-bold">Trainer Professional Profile</h2>
+      {/* Trainer Professional Profile & Programmes Quick Access */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Profile Card */}
+        <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 p-6 text-white shadow-sm flex flex-col justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <UserCircle2 className="h-5 w-5 text-emerald-200" />
+              <h2 className="text-lg font-bold">Trainer Professional Profile</h2>
+            </div>
+            <p className="text-xs text-emerald-100 leading-relaxed">
+              Manage your domain specialization, years of experience, professional summary, and curriculum areas.
+            </p>
           </div>
-          <p className="text-xs text-emerald-100 max-w-xl">
-            Manage your domain specialization, years of experience, professional summary, and curriculum areas to showcase your expertise.
-          </p>
+          <Link
+            to="/trainer/profile"
+            className="inline-flex items-center rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50 shadow-md transition self-start"
+          >
+            View & Edit Profile
+            <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+          </Link>
         </div>
-        <Link
-          to="/trainer/profile"
-          className="inline-flex items-center rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50 shadow-md transition self-start md:self-auto"
-        >
-          View & Edit Profile
-          <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-        </Link>
+
+        {/* Training Programmes Management Card */}
+        <div className="rounded-2xl bg-gradient-to-r from-teal-700 to-slate-800 p-6 text-white shadow-sm flex flex-col justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <BookOpen className="h-5 w-5 text-teal-200" />
+              <h2 className="text-lg font-bold">Training Programmes & Trainees</h2>
+            </div>
+            <p className="text-xs text-teal-100 leading-relaxed">
+              View your assigned training programmes, inspect enrolled trainees, and track participation status.
+            </p>
+          </div>
+          <Link
+            to="/trainer/training-programmes"
+            className="inline-flex items-center rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-slate-800 hover:bg-teal-50 shadow-md transition self-start"
+          >
+            View Training Programmes
+            <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
 
       {/* Assigned Training Programmes Section */}
@@ -195,9 +227,17 @@ export default function TrainerDashboard() {
               <p className="text-xs text-gray-500">Programmes assigned to you as lead faculty/trainer.</p>
             </div>
           </div>
-          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-            {programmes.length} Assigned
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+              {programmes.length} Assigned
+            </span>
+            <Link
+              to="/trainer/training-programmes"
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 hover:underline hidden sm:inline-block"
+            >
+              View All & Trainees →
+            </Link>
+          </div>
         </div>
 
         {error && (
@@ -249,22 +289,51 @@ export default function TrainerDashboard() {
                   )}
                 </div>
 
-                <div className="pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 text-[11px] text-gray-600">
-                  <div className="flex items-center space-x-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                    <span>Start: {formatDate(p.start_date)}</span>
+                <div className="pt-3 border-t border-gray-100 space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600">
+                    <div className="flex items-center space-x-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                      <span>Start: {formatDate(p.start_date)}</span>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                      <span>End: {formatDate(p.end_date)}</span>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <Users className="h-3.5 w-3.5 text-gray-400" />
+                      <span>Capacity: {p.capacity ? `${p.capacity} seats` : 'Open'}</span>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <Clock className="h-3.5 w-3.5 text-gray-400" />
+                      <span>Deadline: {formatDate(p.enrollment_deadline)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                    <span>End: {formatDate(p.end_date)}</span>
-                  </div>
-                  <div className="flex items-center space-x-1.5">
-                    <Users className="h-3.5 w-3.5 text-gray-400" />
-                    <span>Capacity: {p.capacity ? `${p.capacity} seats` : 'Open'}</span>
-                  </div>
-                  <div className="flex items-center space-x-1.5">
-                    <Clock className="h-3.5 w-3.5 text-gray-400" />
-                    <span>Deadline: {formatDate(p.enrollment_deadline)}</span>
+
+                  <div className="pt-2 border-t border-gray-50 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center space-x-1.5">
+                      <Link
+                        to={`/trainer/training-programmes/${p.id}/resources`}
+                        className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition shadow-xs"
+                      >
+                        <FolderOpen className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                        Resources
+                      </Link>
+                      <Link
+                        to={`/trainer/training-programmes/${p.id}/assessments`}
+                        className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition shadow-xs"
+                      >
+                        <HelpCircle className="mr-1 h-3.5 w-3.5 text-indigo-600" />
+                        Assessments
+                      </Link>
+                    </div>
+
+                    <Link
+                      to="/trainer/training-programmes"
+                      className="inline-flex items-center rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition"
+                    >
+                      <Users className="mr-1.5 h-3.5 w-3.5" />
+                      Trainees
+                    </Link>
                   </div>
                 </div>
               </div>
